@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Copy, ExternalLink } from "lucide-react";
+
 import { createClient } from "@/lib/supabase/server";
+import ReviewQrCode from "@/components/ReviewQrCode";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -41,6 +44,8 @@ export default async function DashboardPage() {
 
   const confirmedPosted =
     reviewEvents?.filter((event) => event.confirmed_posted).length ?? 0;
+
+  const reviewUrl = `http://localhost:3000/r/${business.business_slug}`;
 
   return (
     <main className="min-h-screen bg-background px-6 py-10 text-foreground">
@@ -129,8 +134,26 @@ export default async function DashboardPage() {
                     Review Link
                   </div>
 
-                  <div className="mt-2 rounded-2xl border border-border bg-background px-5 py-4 text-sm font-semibold text-secondary">
-                    morestars.co/r/{business.business_slug}
+                  <div className="mt-3 flex flex-col gap-3 rounded-2xl border border-border bg-background p-5">
+                    <div className="break-all text-sm font-semibold text-secondary">
+                      {reviewUrl}
+                    </div>
+
+                    <div className="flex flex-wrap gap-3">
+                      <button className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-black text-white transition hover:bg-blue-700">
+                        <Copy className="h-4 w-4" />
+                        Copy Link
+                      </button>
+
+                      <a
+                        href={reviewUrl}
+                        target="_blank"
+                        className="inline-flex items-center gap-2 rounded-xl border border-border bg-white px-4 py-2 text-sm font-black text-secondary transition hover:border-primary hover:text-primary"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                        Open Page
+                      </a>
+                    </div>
                   </div>
                 </div>
 
@@ -212,6 +235,25 @@ export default async function DashboardPage() {
           </div>
 
           <div className="space-y-6">
+            <div className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
+              <div className="text-sm font-black uppercase tracking-[0.18em] text-primary">
+                Review QR Code
+              </div>
+
+              <h2 className="mt-3 text-2xl font-black text-secondary">
+                Scan to leave a review
+              </h2>
+
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                Print this QR code on signs, menus, tables, receipts, or front
+                desk displays.
+              </p>
+
+              <div className="mt-6">
+                <ReviewQrCode value={reviewUrl} />
+              </div>
+            </div>
+
             <div className="rounded-[2rem] border border-border bg-secondary p-6 text-white shadow-xl shadow-blue-950/10">
               <div className="text-sm font-black uppercase tracking-[0.18em] text-blue-200">
                 Platforms
