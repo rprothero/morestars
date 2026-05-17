@@ -1,5 +1,12 @@
 import Link from "next/link";
-import { Star, QrCode, MessageSquareHeart, BarChart3 } from "lucide-react";
+import {
+  Star,
+  QrCode,
+  MessageSquareHeart,
+  BarChart3,
+  MousePointerClick,
+  ClipboardCheck,
+} from "lucide-react";
 
 export default function Home() {
   return (
@@ -130,6 +137,94 @@ export default function Home() {
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section
+        id="how-it-works"
+        className="border-y border-[#ded6c8] bg-white/65 px-6 py-20"
+      >
+        <div className="mx-auto max-w-7xl">
+          <div className="max-w-3xl">
+            <div className="mb-4 text-sm font-black uppercase tracking-[0.22em] text-[#9b7b2f]">
+              How it works
+            </div>
+
+            <h2 className="text-4xl font-black tracking-tight md:text-5xl">
+              A simple review flow your customers can actually complete.
+            </h2>
+
+            <p className="mt-5 text-lg leading-8 text-[#555]">
+              Your business gets a unique review link and QR code. Customers scan,
+              rate their experience, and MoreStars routes the next step based on
+              the rating they choose.
+            </p>
+          </div>
+
+          <div className="mt-12 grid gap-5 md:grid-cols-3">
+            <div className="rounded-[2rem] border border-[#ded6c8] bg-[#f7f4ee] p-6 shadow-sm">
+              <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-white shadow-sm">
+                <QrCode className="h-7 w-7" />
+              </div>
+              <div className="text-sm font-black text-[#9b7b2f]">STEP 01</div>
+              <h3 className="mt-2 text-2xl font-black">Customer scans</h3>
+              <p className="mt-3 leading-7 text-[#555]">
+                Place your QR code on signs, receipts, front desks, menus, or
+                follow-up messages so customers can open your review flow fast.
+              </p>
+            </div>
+
+            <div className="rounded-[2rem] border border-[#ded6c8] bg-[#f7f4ee] p-6 shadow-sm">
+              <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-white shadow-sm">
+                <Star className="h-7 w-7" />
+              </div>
+              <div className="text-sm font-black text-[#9b7b2f]">STEP 02</div>
+              <h3 className="mt-2 text-2xl font-black">They rate you</h3>
+              <p className="mt-3 leading-7 text-[#555]">
+                Happy customers get help sharing on public platforms. Lower
+                ratings are invited to send private feedback directly to you.
+              </p>
+            </div>
+
+            <div className="rounded-[2rem] border border-[#ded6c8] bg-[#f7f4ee] p-6 shadow-sm">
+              <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-white shadow-sm">
+                <MousePointerClick className="h-7 w-7" />
+              </div>
+              <div className="text-sm font-black text-[#9b7b2f]">STEP 03</div>
+              <h3 className="mt-2 text-2xl font-black">Track activity</h3>
+              <p className="mt-3 leading-7 text-[#555]">
+                See review assists, platform clicks, confirmed posted reviews,
+                and private feedback from your business dashboard.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-8 rounded-[2rem] border border-[#ded6c8] bg-[#151515] p-6 text-white shadow-xl md:p-8">
+            <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+              <div className="flex items-start gap-4">
+                <div className="rounded-2xl bg-white/10 p-3">
+                  <ClipboardCheck className="h-6 w-6" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-black">
+                    Built to collect feedback first.
+                  </h3>
+                  <p className="mt-2 max-w-3xl leading-7 text-white/70">
+                    MoreStars is positioned around feedback collection and review
+                    assistance — not guarantees, fake reviews, or blocking public
+                    customer opinions.
+                  </p>
+                </div>
+              </div>
+
+              <Link
+                href="/signup"
+                className="rounded-full bg-white px-6 py-3 text-center text-sm font-black text-[#151515] transition hover:bg-[#f7f4ee]"
+              >
+                Get Started
+              </Link>
             </div>
           </div>
         </div>
