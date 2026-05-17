@@ -30,6 +30,12 @@ export default async function ReviewPage({ params }: Props) {
           businessId={business.id}
           businessName={business.business_name}
           businessSlug={business.business_slug}
+          googleEnabled={business.google_enabled}
+          googleUrl={business.google_review_url}
+          yelpEnabled={business.yelp_enabled}
+          yelpUrl={business.yelp_review_url}
+          facebookEnabled={business.facebook_enabled}
+          facebookUrl={business.facebook_review_url}
         />
       </div>
     </main>

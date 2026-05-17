@@ -1,32 +1,62 @@
 "use client";
 
 import { useState } from "react";
-import { MessageSquareHeart, Star } from "lucide-react";
+import { CheckCircle2, MessageSquareHeart, Star } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 type ReviewFlowProps = {
   businessId: string;
   businessName: string;
   businessSlug: string;
+
+  googleEnabled: boolean;
+  googleUrl: string | null;
+
+  yelpEnabled: boolean;
+  yelpUrl: string | null;
+
+  facebookEnabled: boolean;
+  facebookUrl: string | null;
 };
 
 export default function ReviewFlow({
   businessId,
   businessName,
   businessSlug,
+
+  googleEnabled,
+  googleUrl,
+
+  yelpEnabled,
+  yelpUrl,
+
+  facebookEnabled,
+  facebookUrl,
 }: ReviewFlowProps) {
   const supabase = createClient();
 
   const [rating, setRating] = useState<number | null>(null);
+
   const [privateFeedback, setPrivateFeedback] = useState("");
+
+  const [positiveSaved, setPositiveSaved] = useState(false);
+
   const [saving, setSaving] = useState(false);
+
   const [submitted, setSubmitted] = useState(false);
+
+  const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
+
   const [errorMessage, setErrorMessage] = useState("");
 
   const isPositive = rating !== null && rating >= 4;
   const isPrivateFeedback = rating !== null && rating <= 3;
 
-  async function saveRatingOnly(selectedRating: number) {
+  async function savePositiveRating(selectedRating: number) {
+    if (positiveSaved) {
+      return;
+    }
+
     setSaving(true);
     setErrorMessage("");
 
@@ -37,8 +67,11 @@ export default function ReviewFlow({
 
     if (error) {
       setErrorMessage(error.message);
+      setSaving(false);
+      return;
     }
 
+    setPositiveSaved(true);
     setSaving(false);
   }
 
@@ -64,6 +97,19 @@ export default function ReviewFlow({
 
     setSubmitted(true);
     setSaving(false);
+  }
+
+  function handlePlatformClick(
+    platform: string,
+    url: string | null | undefined
+  ) {
+    if (!url) {
+      return;
+    }
+
+    setSelectedPlatform(platform);
+
+    window.open(url, "_blank");
   }
 
   if (submitted) {
@@ -107,8 +153,9 @@ export default function ReviewFlow({
             type="button"
             onClick={() => {
               setRating(star);
+
               if (star >= 4) {
-                saveRatingOnly(star);
+                savePositiveRating(star);
               }
             }}
             className={`flex aspect-square items-center justify-center rounded-2xl border text-2xl font-black transition hover:-translate-y-1 ${
@@ -128,26 +175,87 @@ export default function ReviewFlow({
         ))}
       </div>
 
-      {isPositive && (
+      {isPositive && !selectedPlatform && (
         <div className="mt-8 rounded-2xl border border-emerald-200 bg-emerald-50 p-6">
           <div className="flex items-start gap-4">
             <div className="rounded-2xl bg-white p-3 text-primary shadow-sm">
               <Star className="h-6 w-6 fill-primary" />
             </div>
 
-            <div>
+            <div className="w-full">
               <h2 className="text-2xl font-black text-secondary">
                 Glad you had a great experience.
               </h2>
 
               <p className="mt-2 leading-7 text-muted-foreground">
-                Next, we’ll help you write a quick review and choose where to
-                share it.
+                Choose where you would like to leave your public review.
               </p>
 
-              <button className="mt-5 rounded-2xl bg-primary px-6 py-3 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:-translate-y-0.5 hover:bg-blue-700">
-                {saving ? "Saving..." : "Continue"}
-              </button>
+              <div className="mt-5 flex flex-wrap gap-3">
+                {googleEnabled && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handlePlatformClick("Google", googleUrl)
+                    }
+                    className="rounded-2xl bg-primary px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:-translate-y-0.5 hover:bg-blue-700"
+                  >
+                    Google
+                  </button>
+                )}
+
+                {yelpEnabled && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handlePlatformClick("Yelp", yelpUrl)
+                    }
+                    className="rounded-2xl border border-border bg-white px-5 py-3 text-sm font-black text-secondary transition hover:-translate-y-0.5 hover:border-primary hover:text-primary"
+                  >
+                    Yelp
+                  </button>
+                )}
+
+                {facebookEnabled && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handlePlatformClick("Facebook", facebookUrl)
+                    }
+                    className="rounded-2xl border border-border bg-white px-5 py-3 text-sm font-black text-secondary transition hover:-translate-y-0.5 hover:border-primary hover:text-primary"
+                  >
+                    Facebook
+                  </button>
+                )}
+              </div>
+
+              <div className="mt-5 text-sm text-muted-foreground">
+                Your positive review was saved successfully.
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isPositive && selectedPlatform && (
+        <div className="mt-8 rounded-2xl border border-emerald-200 bg-emerald-50 p-6">
+          <div className="flex items-start gap-4">
+            <div className="rounded-2xl bg-white p-3 text-primary shadow-sm">
+              <CheckCircle2 className="h-6 w-6" />
+            </div>
+
+            <div>
+              <h2 className="text-2xl font-black text-secondary">
+                Almost done.
+              </h2>
+
+              <p className="mt-2 leading-7 text-muted-foreground">
+                Your {selectedPlatform} review page opened in a new tab.
+              </p>
+
+              <p className="mt-3 leading-7 text-muted-foreground">
+                After posting your review, you can safely close this page.
+              </p>
             </div>
           </div>
         </div>

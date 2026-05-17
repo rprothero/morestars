@@ -25,6 +25,23 @@ export default async function DashboardPage() {
     redirect("/onboarding");
   }
 
+  const { data: reviewEvents } = await supabase
+    .from("review_events")
+    .select("*")
+    .eq("business_id", business.id)
+    .order("created_at", { ascending: false });
+
+  const totalInteractions = reviewEvents?.length ?? 0;
+
+  const positiveRatings =
+    reviewEvents?.filter((event) => event.rating >= 4).length ?? 0;
+
+  const privateFeedback =
+    reviewEvents?.filter((event) => event.rating <= 3).length ?? 0;
+
+  const confirmedPosted =
+    reviewEvents?.filter((event) => event.confirmed_posted).length ?? 0;
+
   return (
     <main className="min-h-screen bg-background px-6 py-10 text-foreground">
       <div className="mx-auto max-w-7xl">
@@ -54,13 +71,13 @@ export default async function DashboardPage() {
 
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
           {[
-            ["Total Interactions", "0"],
-            ["Positive Ratings", "0"],
-            ["Private Feedback", "0"],
-            ["Confirmed Posted", "0"],
+            ["Total Interactions", totalInteractions],
+            ["Positive Ratings", positiveRatings],
+            ["Private Feedback", privateFeedback],
+            ["Confirmed Posted", confirmedPosted],
           ].map(([label, value]) => (
             <div
-              key={label}
+              key={String(label)}
               className="rounded-[2rem] border border-border bg-card p-6 shadow-sm"
             >
               <div className="text-sm font-bold text-muted-foreground">
@@ -75,55 +92,121 @@ export default async function DashboardPage() {
         </div>
 
         <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_360px]">
-          <div className="rounded-[2rem] border border-border bg-card p-8 shadow-sm">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h2 className="text-2xl font-black text-secondary">
-                  Business Settings
-                </h2>
+          <div className="space-y-6">
+            <div className="rounded-[2rem] border border-border bg-card p-8 shadow-sm">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-2xl font-black text-secondary">
+                    Business Settings
+                  </h2>
 
-                <p className="mt-2 text-muted-foreground">
-                  Your review flow and platform configuration.
-                </p>
+                  <p className="mt-2 text-muted-foreground">
+                    Your review flow and platform configuration.
+                  </p>
+                </div>
+
+                <Link
+                  href="/onboarding"
+                  className="rounded-xl border border-border bg-background px-4 py-2 text-sm font-bold text-secondary transition hover:border-primary hover:text-primary"
+                >
+                  Edit
+                </Link>
               </div>
 
-              <Link
-                href="/onboarding"
-                className="rounded-xl border border-border bg-background px-4 py-2 text-sm font-bold text-secondary transition hover:border-primary hover:text-primary"
-              >
-                Edit
-              </Link>
+              <div className="mt-8 space-y-6">
+                <div>
+                  <div className="text-sm font-bold text-muted-foreground">
+                    Business Name
+                  </div>
+
+                  <div className="mt-2 text-lg font-black text-secondary">
+                    {business.business_name}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-sm font-bold text-muted-foreground">
+                    Review Link
+                  </div>
+
+                  <div className="mt-2 rounded-2xl border border-border bg-background px-5 py-4 text-sm font-semibold text-secondary">
+                    morestars.co/r/{business.business_slug}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-sm font-bold text-muted-foreground">
+                    Notification Email
+                  </div>
+
+                  <div className="mt-2 text-lg font-semibold text-secondary">
+                    {business.notification_email}
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <div className="mt-8 space-y-6">
-              <div>
-                <div className="text-sm font-bold text-muted-foreground">
-                  Business Name
-                </div>
+            <div className="rounded-[2rem] border border-border bg-card p-8 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-black text-secondary">
+                    Recent Feedback
+                  </h2>
 
-                <div className="mt-2 text-lg font-black text-secondary">
-                  {business.business_name}
+                  <p className="mt-2 text-muted-foreground">
+                    Latest review interactions from customers.
+                  </p>
                 </div>
               </div>
 
-              <div>
-                <div className="text-sm font-bold text-muted-foreground">
-                  Review Link
-                </div>
+              <div className="mt-8 space-y-4">
+                {reviewEvents && reviewEvents.length > 0 ? (
+                  reviewEvents.slice(0, 10).map((event) => (
+                    <div
+                      key={event.id}
+                      className="rounded-2xl border border-border bg-background p-5"
+                    >
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-2">
+                          <div className="rounded-full bg-primary px-3 py-1 text-xs font-black text-white">
+                            {event.rating} Star
+                            {event.rating === 1 ? "" : "s"}
+                          </div>
 
-                <div className="mt-2 rounded-2xl border border-border bg-background px-5 py-4 text-sm font-semibold text-secondary">
-                  morestars.co/r/{business.business_slug}
-                </div>
-              </div>
+                          {event.rating >= 4 ? (
+                            <div className="text-sm font-semibold text-emerald-600">
+                              Positive
+                            </div>
+                          ) : (
+                            <div className="text-sm font-semibold text-orange-600">
+                              Private Feedback
+                            </div>
+                          )}
+                        </div>
 
-              <div>
-                <div className="text-sm font-bold text-muted-foreground">
-                  Notification Email
-                </div>
+                        <div className="text-xs text-muted-foreground">
+                          {new Date(event.created_at).toLocaleDateString()}
+                        </div>
+                      </div>
 
-                <div className="mt-2 text-lg font-semibold text-secondary">
-                  {business.notification_email}
-                </div>
+                      {event.private_feedback && (
+                        <div className="mt-4 rounded-xl border border-border bg-card px-4 py-3 text-sm leading-6 text-muted-foreground">
+                          {event.private_feedback}
+                        </div>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-border p-8 text-center">
+                    <div className="text-lg font-bold text-secondary">
+                      No review activity yet
+                    </div>
+
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      Customer review activity will appear here.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
