@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { Copy, ExternalLink } from "lucide-react";
 
@@ -7,6 +8,15 @@ import ReviewQrCode from "@/components/ReviewQrCode";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
+
+  const headersList = await headers();
+
+  const host = headersList.get("host");
+
+  const protocol =
+    process.env.NODE_ENV === "development" ? "http" : "https";
+
+  const baseUrl = `${protocol}://${host}`;
 
   const {
     data: { user },
@@ -45,7 +55,7 @@ export default async function DashboardPage() {
   const confirmedPosted =
     reviewEvents?.filter((event) => event.confirmed_posted).length ?? 0;
 
-  const reviewUrl = `http://localhost:3000/r/${business.business_slug}`;
+  const reviewUrl = `${baseUrl}/r/${business.business_slug}`;
 
   return (
     <main className="min-h-screen bg-background px-6 py-10 text-foreground">
