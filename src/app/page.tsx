@@ -1,65 +1,139 @@
-import Image from "next/image";
+import Link from "next/link";
+import { Star, QrCode, MessageSquareHeart, BarChart3 } from "lucide-react";
 
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <main className="min-h-screen bg-[#f7f4ee] text-[#151515]">
+      <section className="mx-auto flex min-h-screen max-w-7xl flex-col px-6 py-8">
+        <header className="flex items-center justify-between">
+          <div className="text-xl font-bold tracking-tight">MoreStars.co</div>
+
+          <nav className="hidden items-center gap-6 text-sm font-medium text-[#4b4b4b] md:flex">
+            <a href="#how-it-works">How it works</a>
+            <a href="#pricing">Pricing</a>
+            <a href="#faq">FAQ</a>
+          </nav>
+
+          <Link
+            href="/signup"
+            className="rounded-full bg-[#151515] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#2a2a2a]"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            Get Started
+          </Link>
+        </header>
+
+        <div className="grid flex-1 items-center gap-12 py-16 lg:grid-cols-[1.05fr_0.95fr]">
+          <div>
+            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#ded6c8] bg-white/70 px-4 py-2 text-sm font-semibold text-[#6b5b3f]">
+              <Star className="h-4 w-4 fill-current" />
+              QR review links for local businesses
+            </div>
+
+            <h1 className="max-w-4xl text-5xl font-black leading-[1.02] tracking-tight md:text-7xl">
+              Help happy customers leave more public reviews.
+            </h1>
+
+            <p className="mt-6 max-w-2xl text-lg leading-8 text-[#555] md:text-xl">
+              MoreStars.co helps businesses collect customer ratings, guide happy
+              customers to public review platforms, and capture private feedback
+              before small problems become public complaints.
+            </p>
+
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <Link
+                href="/signup"
+                className="rounded-full bg-[#151515] px-7 py-4 text-center text-sm font-bold text-white shadow-lg transition hover:bg-[#2a2a2a]"
+              >
+                Start collecting reviews
+              </Link>
+
+              <a
+                href="#how-it-works"
+                className="rounded-full border border-[#d8d0c2] bg-white px-7 py-4 text-center text-sm font-bold text-[#151515] shadow-sm transition hover:bg-[#fbfaf7]"
+              >
+                See how it works
+              </a>
+            </div>
+
+            <div className="mt-8 grid max-w-xl grid-cols-3 gap-3 text-sm">
+              <div className="rounded-2xl border border-[#ded6c8] bg-white/80 p-4">
+                <div className="font-black">QR</div>
+                <div className="mt-1 text-[#666]">Scan-to-review</div>
+              </div>
+              <div className="rounded-2xl border border-[#ded6c8] bg-white/80 p-4">
+                <div className="font-black">4–5★</div>
+                <div className="mt-1 text-[#666]">Public review assist</div>
+              </div>
+              <div className="rounded-2xl border border-[#ded6c8] bg-white/80 p-4">
+                <div className="font-black">1–3★</div>
+                <div className="mt-1 text-[#666]">Private feedback</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="relative">
+            <div className="absolute -left-6 -top-6 h-28 w-28 rounded-full bg-[#f1c75b]/40 blur-2xl" />
+            <div className="absolute -bottom-8 -right-6 h-40 w-40 rounded-full bg-[#9bc6ff]/40 blur-3xl" />
+
+            <div className="relative rounded-[2rem] border border-[#ded6c8] bg-white p-5 shadow-2xl">
+              <div className="rounded-[1.5rem] bg-[#151515] p-5 text-white">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm text-white/60">Today</div>
+                    <div className="text-2xl font-black">Review Activity</div>
+                  </div>
+                  <div className="rounded-2xl bg-white/10 p-3">
+                    <BarChart3 className="h-6 w-6" />
+                  </div>
+                </div>
+
+                <div className="mt-6 grid grid-cols-2 gap-3">
+                  <div className="rounded-2xl bg-white/10 p-4">
+                    <div className="text-3xl font-black">24</div>
+                    <div className="mt-1 text-sm text-white/60">
+                      Interactions
+                    </div>
+                  </div>
+                  <div className="rounded-2xl bg-white/10 p-4">
+                    <div className="text-3xl font-black">18</div>
+                    <div className="mt-1 text-sm text-white/60">
+                      Positive ratings
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 rounded-2xl bg-white p-4 text-[#151515]">
+                  <div className="flex items-center gap-3">
+                    <div className="rounded-xl bg-[#f7f4ee] p-3">
+                      <QrCode className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <div className="font-black">ABC Plumbing</div>
+                      <div className="text-sm text-[#666]">
+                        morestars.co/r/abc-plumbing
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 rounded-2xl border border-white/10 bg-white/10 p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="rounded-xl bg-white/10 p-3">
+                      <MessageSquareHeart className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <div className="font-bold">Private feedback captured</div>
+                      <div className="text-sm text-white/60">
+                        Customer submitted feedback directly to dashboard.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-      </main>
-    </div>
+      </section>
+    </main>
   );
 }
