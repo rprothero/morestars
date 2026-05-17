@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 function createSlug(value: string) {
@@ -13,6 +13,8 @@ function createSlug(value: string) {
 
 export default function OnboardingPage() {
   const supabase = createClient();
+
+  const [businessId, setBusinessId] = useState<string | null>(null);
 
   const [businessName, setBusinessName] = useState("ABC Plumbing");
   const [notificationEmail, setNotificationEmail] = useState(
@@ -28,16 +30,56 @@ export default function OnboardingPage() {
   const [facebookUrl, setFacebookUrl] = useState("");
 
   const [saving, setSaving] = useState(false);
-  const [successMessage, setSuccessMessage] = useState("");
+  const [loading, setLoading] = useState(true);
+
   const [errorMessage, setErrorMessage] = useState("");
 
   const slug = useMemo(() => {
     return createSlug(businessName || "your-business");
   }, [businessName]);
 
+  useEffect(() => {
+    async function loadBusiness() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+
+      const { data: business } = await supabase
+        .from("businesses")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (business) {
+        setBusinessId(business.id);
+
+        setBusinessName(business.business_name ?? "");
+        setNotificationEmail(business.notification_email ?? "");
+
+        setGoogleEnabled(business.google_enabled ?? true);
+        setYelpEnabled(business.yelp_enabled ?? false);
+        setFacebookEnabled(business.facebook_enabled ?? false);
+
+        setGoogleUrl(business.google_review_url ?? "");
+        setYelpUrl(business.yelp_review_url ?? "");
+        setFacebookUrl(business.facebook_review_url ?? "");
+      }
+
+      setLoading(false);
+    }
+
+    loadBusiness();
+  }, [supabase]);
+
   async function handleSave() {
     setSaving(true);
-    setSuccessMessage("");
     setErrorMessage("");
 
     try {
@@ -51,24 +93,48 @@ export default function OnboardingPage() {
         return;
       }
 
-      const { error } = await supabase.from("businesses").upsert({
-        user_id: user.id,
-        business_name: businessName,
-        business_slug: slug,
-        notification_email: notificationEmail,
-        google_review_url: googleUrl,
-        yelp_review_url: yelpUrl,
-        facebook_review_url: facebookUrl,
-        google_enabled: googleEnabled,
-        yelp_enabled: yelpEnabled,
-        facebook_enabled: facebookEnabled,
-        onboarding_completed: true,
-      });
+      if (businessId) {
+        const { error } = await supabase
+          .from("businesses")
+          .update({
+            business_name: businessName,
+            business_slug: slug,
+            notification_email: notificationEmail,
+            google_review_url: googleUrl,
+            yelp_review_url: yelpUrl,
+            facebook_review_url: facebookUrl,
+            google_enabled: googleEnabled,
+            yelp_enabled: yelpEnabled,
+            facebook_enabled: facebookEnabled,
+            onboarding_completed: true,
+          })
+          .eq("id", businessId);
 
-      if (error) {
-        setErrorMessage(error.message);
-        setSaving(false);
-        return;
+        if (error) {
+          setErrorMessage(error.message);
+          setSaving(false);
+          return;
+        }
+      } else {
+        const { error } = await supabase.from("businesses").insert({
+          user_id: user.id,
+          business_name: businessName,
+          business_slug: slug,
+          notification_email: notificationEmail,
+          google_review_url: googleUrl,
+          yelp_review_url: yelpUrl,
+          facebook_review_url: facebookUrl,
+          google_enabled: googleEnabled,
+          yelp_enabled: yelpEnabled,
+          facebook_enabled: facebookEnabled,
+          onboarding_completed: true,
+        });
+
+        if (error) {
+          setErrorMessage(error.message);
+          setSaving(false);
+          return;
+        }
       }
 
       window.location.href = "/dashboard";
@@ -77,6 +143,18 @@ export default function OnboardingPage() {
     }
 
     setSaving(false);
+  }
+
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-background px-6 py-10">
+        <div className="mx-auto max-w-5xl">
+          <div className="rounded-[2rem] border border-border bg-card p-8 shadow-sm">
+            <p className="text-muted-foreground">Loading business settings...</p>
+          </div>
+        </div>
+      </main>
+    );
   }
 
   return (
@@ -152,91 +230,69 @@ export default function OnboardingPage() {
                 </h2>
 
                 <div className="mt-6 space-y-5">
-                  <div className="rounded-2xl border border-border bg-background p-5">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-black text-secondary">
-                          Google Reviews
+                  {[
+                    {
+                      title: "Google Reviews",
+                      enabled: googleEnabled,
+                      setEnabled: setGoogleEnabled,
+                      value: googleUrl,
+                      setValue: setGoogleUrl,
+                      placeholder: "Google review link",
+                    },
+                    {
+                      title: "Yelp Reviews",
+                      enabled: yelpEnabled,
+                      setEnabled: setYelpEnabled,
+                      value: yelpUrl,
+                      setValue: setYelpUrl,
+                      placeholder: "Yelp review link",
+                    },
+                    {
+                      title: "Facebook Reviews",
+                      enabled: facebookEnabled,
+                      setEnabled: setFacebookEnabled,
+                      value: facebookUrl,
+                      setValue: setFacebookUrl,
+                      placeholder: "Facebook review link",
+                    },
+                  ].map((platform) => (
+                    <div
+                      key={platform.title}
+                      className="rounded-2xl border border-border bg-background p-5"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="font-black text-secondary">
+                            {platform.title}
+                          </div>
                         </div>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            platform.setEnabled(!platform.enabled)
+                          }
+                          className={`rounded-full px-4 py-2 text-xs font-black text-white ${
+                            platform.enabled
+                              ? "bg-primary"
+                              : "bg-slate-400"
+                          }`}
+                        >
+                          {platform.enabled ? "Enabled" : "Disabled"}
+                        </button>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={() => setGoogleEnabled(!googleEnabled)}
-                        className={`rounded-full px-4 py-2 text-xs font-black text-white ${
-                          googleEnabled ? "bg-primary" : "bg-slate-400"
-                        }`}
-                      >
-                        {googleEnabled ? "Enabled" : "Disabled"}
-                      </button>
-                    </div>
-
-                    <input
-                      type="text"
-                      value={googleUrl}
-                      onChange={(e) => setGoogleUrl(e.target.value)}
-                      placeholder="Google review link"
-                      className="mt-4 w-full rounded-2xl border border-border bg-white px-5 py-4 text-sm font-medium outline-none transition focus:border-primary focus:ring-4 focus:ring-blue-100"
-                    />
-                  </div>
-
-                  <div className="rounded-2xl border border-border bg-background p-5">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-black text-secondary">
-                          Yelp Reviews
-                        </div>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => setYelpEnabled(!yelpEnabled)}
-                        className={`rounded-full px-4 py-2 text-xs font-black text-white ${
-                          yelpEnabled ? "bg-primary" : "bg-slate-400"
-                        }`}
-                      >
-                        {yelpEnabled ? "Enabled" : "Disabled"}
-                      </button>
-                    </div>
-
-                    <input
-                      type="text"
-                      value={yelpUrl}
-                      onChange={(e) => setYelpUrl(e.target.value)}
-                      placeholder="Yelp review link"
-                      className="mt-4 w-full rounded-2xl border border-border bg-white px-5 py-4 text-sm font-medium outline-none transition focus:border-primary focus:ring-4 focus:ring-blue-100"
-                    />
-                  </div>
-
-                  <div className="rounded-2xl border border-border bg-background p-5">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-black text-secondary">
-                          Facebook Reviews
-                        </div>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setFacebookEnabled(!facebookEnabled)
+                      <input
+                        type="text"
+                        value={platform.value}
+                        onChange={(e) =>
+                          platform.setValue(e.target.value)
                         }
-                        className={`rounded-full px-4 py-2 text-xs font-black text-white ${
-                          facebookEnabled ? "bg-primary" : "bg-slate-400"
-                        }`}
-                      >
-                        {facebookEnabled ? "Enabled" : "Disabled"}
-                      </button>
+                        placeholder={platform.placeholder}
+                        className="mt-4 w-full rounded-2xl border border-border bg-white px-5 py-4 text-sm font-medium outline-none transition focus:border-primary focus:ring-4 focus:ring-blue-100"
+                      />
                     </div>
-
-                    <input
-                      type="text"
-                      value={facebookUrl}
-                      onChange={(e) => setFacebookUrl(e.target.value)}
-                      placeholder="Facebook review link"
-                      className="mt-4 w-full rounded-2xl border border-border bg-white px-5 py-4 text-sm font-medium outline-none transition focus:border-primary focus:ring-4 focus:ring-blue-100"
-                    />
-                  </div>
+                  ))}
                 </div>
               </div>
 
@@ -249,12 +305,6 @@ export default function OnboardingPage() {
                 >
                   {saving ? "Saving..." : "Save Business Settings"}
                 </button>
-
-                {successMessage && (
-                  <p className="mt-4 text-sm font-semibold text-emerald-600">
-                    {successMessage}
-                  </p>
-                )}
 
                 {errorMessage && (
                   <p className="mt-4 text-sm font-semibold text-red-600">
