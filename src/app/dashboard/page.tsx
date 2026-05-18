@@ -1,54 +1,103 @@
+"use client";
+
 import Link from "next/link";
-import { redirect } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Copy, ExternalLink } from "lucide-react";
 
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/client";
 import ReviewQrCode from "@/components/ReviewQrCode";
 
-export default async function DashboardPage() {
-  const supabase = await createClient();
+type Business = {
+  id: string;
+  business_name: string;
+  business_slug: string;
+  notification_email: string;
+  google_enabled: boolean;
+  yelp_enabled: boolean;
+  facebook_enabled: boolean;
+};
 
-  const siteUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+type ReviewEvent = {
+  id: string;
+  rating: number;
+  private_feedback: string | null;
+  confirmed_posted: boolean;
+  created_at: string;
+};
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+export default function DashboardPage() {
+  const router = useRouter();
+  const supabase = createClient();
 
-  if (!user) {
-    redirect("/login");
+  const [loading, setLoading] = useState(true);
+  const [userEmail, setUserEmail] = useState("");
+  const [business, setBusiness] = useState<Business | null>(null);
+  const [reviewEvents, setReviewEvents] = useState<ReviewEvent[]>([]);
+
+  useEffect(() => {
+    async function loadDashboard() {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session?.user) {
+        router.replace("/login");
+        return;
+      }
+
+      setUserEmail(session.user.email ?? "");
+
+      const { data: businessData } = await supabase
+        .from("businesses")
+        .select("*")
+        .eq("user_id", session.user.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!businessData) {
+        router.replace("/onboarding");
+        return;
+      }
+
+      setBusiness(businessData);
+
+      const { data: eventsData } = await supabase
+        .from("review_events")
+        .select("*")
+        .eq("business_id", businessData.id)
+        .order("created_at", { ascending: false });
+
+      setReviewEvents(eventsData ?? []);
+      setLoading(false);
+    }
+
+    loadDashboard();
+  }, [router, supabase]);
+
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-background px-6 py-10 text-foreground">
+        <div className="mx-auto max-w-7xl">
+          <div className="rounded-[2rem] border border-border bg-card p-8 shadow-sm">
+            <p className="text-muted-foreground">Loading dashboard...</p>
+          </div>
+        </div>
+      </main>
+    );
   }
-
-  const { data: business } = await supabase
-    .from("businesses")
-    .select("*")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
 
   if (!business) {
-    redirect("/onboarding");
+    return null;
   }
 
-  const { data: reviewEvents } = await supabase
-    .from("review_events")
-    .select("*")
-    .eq("business_id", business.id)
-    .order("created_at", { ascending: false });
+  const reviewUrl = `${window.location.origin}/r/${business.business_slug}`;
 
-  const totalInteractions = reviewEvents?.length ?? 0;
-
-  const positiveRatings =
-    reviewEvents?.filter((event) => event.rating >= 4).length ?? 0;
-
-  const privateFeedback =
-    reviewEvents?.filter((event) => event.rating <= 3).length ?? 0;
-
-  const confirmedPosted =
-    reviewEvents?.filter((event) => event.confirmed_posted).length ?? 0;
-
-  const reviewUrl = `${siteUrl}/r/${business.business_slug}`;
+  const totalInteractions = reviewEvents.length;
+  const positiveRatings = reviewEvents.filter((event) => event.rating >= 4).length;
+  const privateFeedback = reviewEvents.filter((event) => event.rating <= 3).length;
+  const confirmedPosted = reviewEvents.filter((event) => event.confirmed_posted).length;
 
   return (
     <main className="min-h-screen bg-background px-6 py-10 text-foreground">
@@ -143,7 +192,11 @@ export default async function DashboardPage() {
                     </div>
 
                     <div className="flex flex-wrap gap-3">
-                      <button className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-black text-white transition hover:bg-blue-700">
+                      <button
+                        type="button"
+                        onClick={() => navigator.clipboard.writeText(reviewUrl)}
+                        className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-black text-white transition hover:bg-blue-700"
+                      >
                         <Copy className="h-4 w-4" />
                         Copy Link
                       </button>
@@ -173,20 +226,16 @@ export default async function DashboardPage() {
             </div>
 
             <div className="rounded-[2rem] border border-border bg-card p-8 shadow-sm">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-2xl font-black text-secondary">
-                    Recent Feedback
-                  </h2>
+              <h2 className="text-2xl font-black text-secondary">
+                Recent Feedback
+              </h2>
 
-                  <p className="mt-2 text-muted-foreground">
-                    Latest review interactions from customers.
-                  </p>
-                </div>
-              </div>
+              <p className="mt-2 text-muted-foreground">
+                Latest review interactions from customers.
+              </p>
 
               <div className="mt-8 space-y-4">
-                {reviewEvents && reviewEvents.length > 0 ? (
+                {reviewEvents.length > 0 ? (
                   reviewEvents.slice(0, 10).map((event) => (
                     <div
                       key={event.id}
@@ -294,7 +343,7 @@ export default async function DashboardPage() {
               </div>
 
               <div className="mt-3 text-sm font-medium text-muted-foreground">
-                {user.email}
+                {userEmail}
               </div>
             </div>
           </div>

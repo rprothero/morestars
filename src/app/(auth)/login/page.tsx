@@ -1,14 +1,39 @@
+"use client";
+
 import Link from "next/link";
-import { login } from "./actions";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 
-type Props = {
-  searchParams: Promise<{
-    error?: string;
-  }>;
-};
+export default function LoginPage() {
+  const router = useRouter();
+  const supabase = createClient();
 
-export default async function LoginPage({ searchParams }: Props) {
-  const params = await searchParams;
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  async function handleLogin(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    setError("");
+    setIsLoading(true);
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    setIsLoading(false);
+
+    if (error) {
+      setError(error.message);
+      return;
+    }
+
+    router.push("/dashboard");
+  }
 
   return (
     <main className="min-h-screen bg-[#F8FBFF] px-6 py-10 text-[#1E293B]">
@@ -18,9 +43,7 @@ export default async function LoginPage({ searchParams }: Props) {
             ★
           </div>
 
-          <h1 className="text-3xl font-bold tracking-tight">
-            Welcome back
-          </h1>
+          <h1 className="text-3xl font-bold tracking-tight">Welcome back</h1>
 
           <p className="mt-2 text-sm text-[#64748B]">
             Log in to your MoreStars dashboard.
@@ -28,16 +51,16 @@ export default async function LoginPage({ searchParams }: Props) {
         </div>
 
         <form
-          action={login}
+          onSubmit={handleLogin}
           className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
         >
           <div>
             <label className="text-sm font-medium">Email</label>
-
             <input
               type="email"
-              name="email"
               required
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
               className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100"
               placeholder="you@example.com"
             />
@@ -45,27 +68,28 @@ export default async function LoginPage({ searchParams }: Props) {
 
           <div className="mt-4">
             <label className="text-sm font-medium">Password</label>
-
             <input
               type="password"
-              name="password"
               required
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
               className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100"
               placeholder="Enter your password"
             />
           </div>
 
-          {params.error ? (
+          {error ? (
             <p className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
-              {params.error}
+              {error}
             </p>
           ) : null}
 
           <button
             type="submit"
-            className="mt-6 w-full rounded-xl bg-[#2563EB] px-4 py-3 font-medium text-white transition hover:bg-[#1D4ED8]"
+            disabled={isLoading}
+            className="mt-6 w-full rounded-xl bg-[#2563EB] px-4 py-3 font-medium text-white transition hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Log in
+            {isLoading ? "Logging in..." : "Log in"}
           </button>
 
           <p className="mt-5 text-center text-sm text-[#64748B]">
