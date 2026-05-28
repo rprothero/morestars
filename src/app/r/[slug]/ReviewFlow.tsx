@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Check,
   CheckCircle2,
@@ -12,18 +12,16 @@ import {
   Wrench,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { generateReviewSuggestions } from "@/lib/review-templates";
 
 type ReviewFlowProps = {
   businessId: string;
   businessName: string;
   businessSlug: string;
-
   googleEnabled: boolean;
   googleUrl: string | null;
-
   yelpEnabled: boolean;
   yelpUrl: string | null;
-
   facebookEnabled: boolean;
   facebookUrl: string | null;
 };
@@ -36,6 +34,16 @@ type FlowStep =
   | "positive"
   | "posted"
   | "private";
+
+type ServiceCategory = {
+  id: string;
+  category_name: string;
+};
+
+type Helper = {
+  id: string;
+  display_name: string;
+};
 
 function makeSessionId() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -60,10 +68,22 @@ export default function ReviewFlow({
 
   const [step, setStep] = useState<FlowStep>("rating");
   const [rating, setRating] = useState<number | null>(null);
+
+  const [serviceCategories, setServiceCategories] = useState<ServiceCategory[]>(
+    []
+  );
+  const [helpers, setHelpers] = useState<Helper[]>([]);
+
+  const [serviceCategoryId, setServiceCategoryId] = useState<string | null>(
+    null
+  );
+  const [helperId, setHelperId] = useState<string | null>(null);
+
   const [serviceDescription, setServiceDescription] = useState("");
   const [helperName, setHelperName] = useState("");
   const [customReview, setCustomReview] = useState("");
   const [privateFeedback, setPrivateFeedback] = useState("");
+
   const [saving, setSaving] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
@@ -73,24 +93,50 @@ export default function ReviewFlow({
   const [customCopied, setCustomCopied] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
-  const reviewSuggestions = useMemo(() => {
-    const service =
-      serviceDescription.trim().length > 0
-        ? serviceDescription
-        : "the service";
+  useEffect(() => {
+    async function loadOptions() {
+      const { data: categories } = await supabase
+        .from("business_service_categories")
+        .select("id, category_name")
+        .eq("business_id", businessId)
+        .eq("is_active", true)
+        .order("category_name", { ascending: true });
 
-    const helper = helperName.trim().length > 0 ? ` ${helperName}` : "";
+      const { data: helperData } = await supabase
+        .from("business_helpers")
+        .select("id, display_name")
+        .eq("business_id", businessId)
+        .eq("is_active", true)
+        .order("display_name", { ascending: true });
 
-    return [
-      `Great experience with ${businessName}.${helper ? `${helper} was extremely helpful and professional.` : ""} Highly recommend them for ${service}.`,
-      `${businessName} did an amazing job with ${service}.${helper ? `${helper} made the process smooth and easy.` : ""} Would definitely use them again.`,
-      `Very happy with my experience at ${businessName}.${helper ? `${helper} provided excellent customer service.` : ""} Fast, professional, and easy to work with.`,
-    ];
-  }, [businessName, helperName, serviceDescription]);
+      setServiceCategories(categories ?? []);
+      setHelpers(helperData ?? []);
+    }
+
+    loadOptions();
+  }, [businessId, supabase]);
+
+  const reviewSuggestions = generateReviewSuggestions({
+    businessName,
+    serviceDescription,
+    helperName,
+  });
 
   function handleRatingSelect(selectedRating: number) {
     setRating(selectedRating);
     setStep("service");
+    setErrorMessage("");
+  }
+
+  function handleServiceCategorySelect(category: ServiceCategory) {
+    setServiceCategoryId(category.id);
+    setServiceDescription(category.category_name);
+    setErrorMessage("");
+  }
+
+  function handleHelperSelect(helper: Helper) {
+    setHelperId(helper.id);
+    setHelperName(helper.display_name);
     setErrorMessage("");
   }
 
@@ -116,9 +162,7 @@ export default function ReviewFlow({
   }
 
   async function continuePositiveFlow() {
-    if (!rating) {
-      return;
-    }
+    if (!rating) return;
 
     setSaving(true);
     setErrorMessage("");
@@ -129,7 +173,9 @@ export default function ReviewFlow({
         business_id: businessId,
         rating,
         service_description: serviceDescription,
+        service_category_id: serviceCategoryId,
         helper_name: helperName,
+        helper_id: helperId,
         suggested_review: customReview,
         public_session_id: publicSessionId,
       })
@@ -172,9 +218,7 @@ export default function ReviewFlow({
   }
 
   async function submitPrivateFeedback() {
-    if (!rating) {
-      return;
-    }
+    if (!rating) return;
 
     setSaving(true);
     setErrorMessage("");
@@ -183,7 +227,9 @@ export default function ReviewFlow({
       business_id: businessId,
       rating,
       service_description: serviceDescription,
+      service_category_id: serviceCategoryId,
       helper_name: helperName,
+      helper_id: helperId,
       private_feedback: privateFeedback,
       public_session_id: publicSessionId,
     });
@@ -216,17 +262,11 @@ export default function ReviewFlow({
     if (typeof index === "number") {
       setCopiedIndex(index);
       setCustomCopied(false);
-
-      setTimeout(() => {
-        setCopiedIndex(null);
-      }, 2000);
+      setTimeout(() => setCopiedIndex(null), 2000);
     } else {
       setCustomCopied(true);
       setCopiedIndex(null);
-
-      setTimeout(() => {
-        setCustomCopied(false);
-      }, 2000);
+      setTimeout(() => setCustomCopied(false), 2000);
     }
   }
 
@@ -234,9 +274,7 @@ export default function ReviewFlow({
     platform: string,
     url: string | null | undefined
   ) {
-    if (!url) {
-      return;
-    }
+    if (!url) return;
 
     setSelectedPlatform(platform);
     window.open(url, "_blank", "noopener,noreferrer");
@@ -323,15 +361,36 @@ export default function ReviewFlow({
               </h2>
 
               <p className="mt-2 leading-7 text-muted-foreground">
-                This helps {businessName} understand what part of the experience
-                your rating was about.
+                Choose the closest option or type your own.
               </p>
+
+              {serviceCategories.length > 0 && (
+                <div className="mt-5 flex flex-wrap gap-2">
+                  {serviceCategories.map((category) => (
+                    <button
+                      key={category.id}
+                      type="button"
+                      onClick={() => handleServiceCategorySelect(category)}
+                      className={`rounded-full border px-4 py-2 text-sm font-bold transition ${
+                        serviceCategoryId === category.id
+                          ? "border-primary bg-primary text-white"
+                          : "border-border bg-white text-secondary hover:border-primary hover:text-primary"
+                      }`}
+                    >
+                      {category.category_name}
+                    </button>
+                  ))}
+                </div>
+              )}
 
               <input
                 type="text"
                 value={serviceDescription}
-                onChange={(e) => setServiceDescription(e.target.value)}
-                placeholder="Example: customer service, plumbing repair, dinner service, cleaning, appointment scheduling"
+                onChange={(e) => {
+                  setServiceDescription(e.target.value);
+                  setServiceCategoryId(null);
+                }}
+                placeholder="Example: customer service, water heater repair, dinner service"
                 className="mt-5 w-full rounded-2xl border border-border bg-white px-5 py-4 text-sm font-medium outline-none transition focus:border-primary focus:ring-4 focus:ring-blue-100"
               />
 
@@ -360,15 +419,36 @@ export default function ReviewFlow({
               </h2>
 
               <p className="mt-2 leading-7 text-muted-foreground">
-                This is optional. You can name a team member, technician,
-                server, agent, or staff member if someone specific helped you.
+                Optional. Choose a team member or type a name if you remember.
               </p>
+
+              {helpers.length > 0 && (
+                <div className="mt-5 flex flex-wrap gap-2">
+                  {helpers.map((helper) => (
+                    <button
+                      key={helper.id}
+                      type="button"
+                      onClick={() => handleHelperSelect(helper)}
+                      className={`rounded-full border px-4 py-2 text-sm font-bold transition ${
+                        helperId === helper.id
+                          ? "border-primary bg-primary text-white"
+                          : "border-border bg-white text-secondary hover:border-primary hover:text-primary"
+                      }`}
+                    >
+                      {helper.display_name}
+                    </button>
+                  ))}
+                </div>
+              )}
 
               <input
                 type="text"
                 value={helperName}
-                onChange={(e) => setHelperName(e.target.value)}
-                placeholder="Optional: John, Sarah, Mike the technician, front desk staff"
+                onChange={(e) => {
+                  setHelperName(e.target.value);
+                  setHelperId(null);
+                }}
+                placeholder="Optional: John, Sarah, Mike the technician"
                 className="mt-5 w-full rounded-2xl border border-border bg-white px-5 py-4 text-sm font-medium outline-none transition focus:border-primary focus:ring-4 focus:ring-blue-100"
               />
 
@@ -384,6 +464,7 @@ export default function ReviewFlow({
                 <button
                   type="button"
                   onClick={() => {
+                    setHelperId(null);
                     setHelperName("");
                     handleHelperContinue();
                   }}
@@ -451,12 +532,6 @@ export default function ReviewFlow({
                         </>
                       )}
                     </button>
-
-                    {copiedIndex === index && (
-                      <div className="mt-3 text-sm font-semibold text-emerald-700">
-                        Copied to clipboard and added below.
-                      </div>
-                    )}
                   </div>
                 ))}
               </div>
@@ -485,25 +560,10 @@ export default function ReviewFlow({
                       : "border border-border bg-white text-secondary hover:border-primary hover:text-primary"
                   }`}
                 >
-                  {customCopied ? (
-                    <>
-                      <Check className="h-4 w-4" />
-                      Custom Review Copied
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="h-4 w-4" />
-                      Copy Custom Review
-                    </>
-                  )}
+                  <Copy className="h-4 w-4" />
+                  {customCopied ? "Custom Review Copied" : "Copy Custom Review"}
                 </button>
               </div>
-
-              {customCopied && (
-                <div className="mt-4 rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-sm font-semibold text-emerald-700">
-                  Your custom review was copied successfully.
-                </div>
-              )}
 
               <button
                 type="button"
@@ -591,16 +651,6 @@ export default function ReviewFlow({
                 >
                   {saving ? "Saving..." : "I Posted My Review"}
                 </button>
-
-                {!selectedPlatform && (
-                  <p className="mt-3 text-xs font-semibold text-muted-foreground">
-                    First choose a review platform above.
-                  </p>
-                )}
-              </div>
-
-              <div className="mt-5 text-sm text-muted-foreground">
-                Your positive review assist was saved successfully.
               </div>
             </div>
           </div>
