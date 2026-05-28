@@ -1,8 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
+  Check,
   CheckCircle2,
+  Copy,
+  ExternalLink,
   MessageSquareHeart,
   Star,
   UserRound,
@@ -25,19 +28,23 @@ type ReviewFlowProps = {
   facebookUrl: string | null;
 };
 
-type FlowStep = "rating" | "service" | "helper" | "positive" | "private";
+type FlowStep =
+  | "rating"
+  | "service"
+  | "helper"
+  | "suggestion"
+  | "positive"
+  | "posted"
+  | "private";
 
 export default function ReviewFlow({
   businessId,
   businessName,
   businessSlug,
-
   googleEnabled,
   googleUrl,
-
   yelpEnabled,
   yelpUrl,
-
   facebookEnabled,
   facebookUrl,
 }: ReviewFlowProps) {
@@ -47,11 +54,30 @@ export default function ReviewFlow({
   const [rating, setRating] = useState<number | null>(null);
   const [serviceDescription, setServiceDescription] = useState("");
   const [helperName, setHelperName] = useState("");
+  const [customReview, setCustomReview] = useState("");
   const [privateFeedback, setPrivateFeedback] = useState("");
   const [saving, setSaving] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
+  const [reviewEventId, setReviewEventId] = useState<string | null>(null);
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const [customCopied, setCustomCopied] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+
+  const reviewSuggestions = useMemo(() => {
+    const service =
+      serviceDescription.trim().length > 0
+        ? serviceDescription
+        : "the service";
+
+    const helper = helperName.trim().length > 0 ? ` ${helperName}` : "";
+
+    return [
+      `Great experience with ${businessName}.${helper ? `${helper} was extremely helpful and professional.` : ""} Highly recommend them for ${service}.`,
+      `${businessName} did an amazing job with ${service}.${helper ? `${helper} made the process smooth and easy.` : ""} Would definitely use them again.`,
+      `Very happy with my experience at ${businessName}.${helper ? `${helper} provided excellent customer service.` : ""} Fast, professional, and easy to work with.`,
+    ];
+  }, [businessName, helperName, serviceDescription]);
 
   function handleRatingSelect(selectedRating: number) {
     setRating(selectedRating);
@@ -73,15 +99,14 @@ export default function ReviewFlow({
     setErrorMessage("");
 
     if (rating && rating >= 4) {
-      setStep("positive");
-      savePositiveRating();
+      setStep("suggestion");
       return;
     }
 
     setStep("private");
   }
 
-  async function savePositiveRating() {
+  async function continuePositiveFlow() {
     if (!rating) {
       return;
     }
@@ -89,18 +114,53 @@ export default function ReviewFlow({
     setSaving(true);
     setErrorMessage("");
 
-    const { error } = await supabase.from("review_events").insert({
-      business_id: businessId,
-      rating,
-      service_description: serviceDescription,
-      helper_name: helperName,
-    });
+    const { data, error } = await supabase
+      .from("review_events")
+      .insert({
+        business_id: businessId,
+        rating,
+        service_description: serviceDescription,
+        helper_name: helperName,
+        suggested_review: customReview,
+      })
+      .select("id")
+      .single();
 
     if (error) {
       setErrorMessage(error.message);
+      setSaving(false);
+      return;
+    }
+
+    setReviewEventId(data.id);
+    setSaving(false);
+    setStep("positive");
+  }
+
+  async function confirmPostedReview() {
+    if (!reviewEventId) {
+      setErrorMessage("We could not find this review session. Please try again.");
+      return;
+    }
+
+    setSaving(true);
+    setErrorMessage("");
+
+    const { error } = await supabase
+      .from("review_events")
+      .update({
+        confirmed_posted: true,
+      })
+      .eq("id", reviewEventId);
+
+    if (error) {
+      setErrorMessage(error.message);
+      setSaving(false);
+      return;
     }
 
     setSaving(false);
+    setStep("posted");
   }
 
   async function submitPrivateFeedback() {
@@ -129,6 +189,38 @@ export default function ReviewFlow({
     setSaving(false);
   }
 
+  async function copyReview(text: string, index?: number) {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      textArea.style.position = "fixed";
+      textArea.style.left = "-9999px";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textArea);
+    }
+
+    if (typeof index === "number") {
+      setCopiedIndex(index);
+      setCustomCopied(false);
+
+      setTimeout(() => {
+        setCopiedIndex(null);
+      }, 2000);
+    } else {
+      setCustomCopied(true);
+      setCopiedIndex(null);
+
+      setTimeout(() => {
+        setCustomCopied(false);
+      }, 2000);
+    }
+  }
+
   function handlePlatformClick(
     platform: string,
     url: string | null | undefined
@@ -138,7 +230,7 @@ export default function ReviewFlow({
     }
 
     setSelectedPlatform(platform);
-    window.open(url, "_blank");
+    window.open(url, "_blank", "noopener,noreferrer");
   }
 
   if (submitted) {
@@ -154,6 +246,25 @@ export default function ReviewFlow({
 
         <p className="mt-4 leading-7 text-muted-foreground">
           Your private feedback has been sent to {businessName}.
+        </p>
+      </div>
+    );
+  }
+
+  if (step === "posted") {
+    return (
+      <div className="rounded-[2rem] border border-emerald-200 bg-emerald-50 p-8 text-center shadow-sm">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-primary shadow-sm">
+          <CheckCircle2 className="h-7 w-7" />
+        </div>
+
+        <h1 className="mt-6 text-4xl font-black tracking-tight text-secondary">
+          Thank you for your review.
+        </h1>
+
+        <p className="mt-4 leading-7 text-muted-foreground">
+          Your feedback helps support businesses like {businessName} and helps
+          future customers make informed decisions.
         </p>
       </div>
     );
@@ -277,7 +388,7 @@ export default function ReviewFlow({
         </div>
       )}
 
-      {step === "positive" && !selectedPlatform && (
+      {step === "suggestion" && (
         <div className="mt-8 rounded-2xl border border-emerald-200 bg-emerald-50 p-6">
           <div className="flex items-start gap-4">
             <div className="rounded-2xl bg-white p-3 text-primary shadow-sm">
@@ -286,7 +397,128 @@ export default function ReviewFlow({
 
             <div className="w-full">
               <h2 className="text-2xl font-black text-secondary">
-                Glad you had a great experience.
+                Suggested review ideas
+              </h2>
+
+              <p className="mt-2 leading-7 text-muted-foreground">
+                Tap a suggestion to copy it, or write your own review below.
+              </p>
+
+              <div className="mt-6 space-y-4">
+                {reviewSuggestions.map((suggestion, index) => (
+                  <div
+                    key={suggestion}
+                    className={`rounded-2xl border bg-white p-5 transition ${
+                      copiedIndex === index
+                        ? "border-emerald-400 ring-4 ring-emerald-100"
+                        : "border-emerald-200"
+                    }`}
+                  >
+                    <div className="text-sm leading-7 text-secondary">
+                      {suggestion}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCustomReview(suggestion);
+                        copyReview(suggestion, index);
+                      }}
+                      className={`mt-4 inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-black transition ${
+                        copiedIndex === index
+                          ? "bg-emerald-600 text-white"
+                          : "bg-primary text-white hover:bg-blue-700"
+                      }`}
+                    >
+                      {copiedIndex === index ? (
+                        <>
+                          <Check className="h-4 w-4" />
+                          Copied
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="h-4 w-4" />
+                          Copy Suggestion
+                        </>
+                      )}
+                    </button>
+
+                    {copiedIndex === index && (
+                      <div className="mt-3 text-sm font-semibold text-emerald-700">
+                        Copied to clipboard and added below.
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-6">
+                <label className="text-sm font-black text-secondary">
+                  Custom review
+                </label>
+
+                <textarea
+                  value={customReview}
+                  onChange={(e) => setCustomReview(e.target.value)}
+                  placeholder="Write your own review here..."
+                  className="mt-3 min-h-36 w-full rounded-2xl border border-border bg-white px-5 py-4 text-sm font-medium outline-none transition focus:border-primary focus:ring-4 focus:ring-blue-100"
+                />
+              </div>
+
+              <div className="mt-4 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={() => copyReview(customReview)}
+                  disabled={customReview.trim().length === 0}
+                  className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-black transition disabled:opacity-50 ${
+                    customCopied
+                      ? "bg-emerald-600 text-white"
+                      : "border border-border bg-white text-secondary hover:border-primary hover:text-primary"
+                  }`}
+                >
+                  {customCopied ? (
+                    <>
+                      <Check className="h-4 w-4" />
+                      Custom Review Copied
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="h-4 w-4" />
+                      Copy Custom Review
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {customCopied && (
+                <div className="mt-4 rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-sm font-semibold text-emerald-700">
+                  Your custom review was copied successfully.
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={continuePositiveFlow}
+                disabled={saving}
+                className="mt-6 rounded-2xl bg-primary px-6 py-3 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:-translate-y-0.5 hover:bg-blue-700 disabled:opacity-50"
+              >
+                {saving ? "Saving..." : "Continue to Review Platforms"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {step === "positive" && (
+        <div className="mt-8 rounded-2xl border border-emerald-200 bg-emerald-50 p-6">
+          <div className="flex items-start gap-4">
+            <div className="rounded-2xl bg-white p-3 text-primary shadow-sm">
+              <Star className="h-6 w-6 fill-primary" />
+            </div>
+
+            <div className="w-full">
+              <h2 className="text-2xl font-black text-secondary">
+                Ready to post your review?
               </h2>
 
               <p className="mt-2 leading-7 text-muted-foreground">
@@ -298,9 +530,10 @@ export default function ReviewFlow({
                   <button
                     type="button"
                     onClick={() => handlePlatformClick("Google", googleUrl)}
-                    className="rounded-2xl bg-primary px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:-translate-y-0.5 hover:bg-blue-700"
+                    className="inline-flex items-center gap-2 rounded-2xl bg-primary px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:-translate-y-0.5 hover:bg-blue-700"
                   >
                     Google
+                    <ExternalLink className="h-4 w-4" />
                   </button>
                 )}
 
@@ -308,9 +541,10 @@ export default function ReviewFlow({
                   <button
                     type="button"
                     onClick={() => handlePlatformClick("Yelp", yelpUrl)}
-                    className="rounded-2xl border border-border bg-white px-5 py-3 text-sm font-black text-secondary transition hover:-translate-y-0.5 hover:border-primary hover:text-primary"
+                    className="inline-flex items-center gap-2 rounded-2xl border border-border bg-white px-5 py-3 text-sm font-black text-secondary transition hover:-translate-y-0.5 hover:border-primary hover:text-primary"
                   >
                     Yelp
+                    <ExternalLink className="h-4 w-4" />
                   </button>
                 )}
 
@@ -320,42 +554,45 @@ export default function ReviewFlow({
                     onClick={() =>
                       handlePlatformClick("Facebook", facebookUrl)
                     }
-                    className="rounded-2xl border border-border bg-white px-5 py-3 text-sm font-black text-secondary transition hover:-translate-y-0.5 hover:border-primary hover:text-primary"
+                    className="inline-flex items-center gap-2 rounded-2xl border border-border bg-white px-5 py-3 text-sm font-black text-secondary transition hover:-translate-y-0.5 hover:border-primary hover:text-primary"
                   >
                     Facebook
+                    <ExternalLink className="h-4 w-4" />
                   </button>
                 )}
               </div>
 
-              <div className="mt-5 text-sm text-muted-foreground">
-                {saving
-                  ? "Saving your rating..."
-                  : "Your positive review was saved successfully."}
+              <div className="mt-6 rounded-2xl border border-emerald-200 bg-white p-5">
+                <h3 className="text-sm font-black uppercase tracking-wide text-secondary">
+                  {selectedPlatform
+                    ? `${selectedPlatform} opened in a new tab`
+                    : "Posted your review?"}
+                </h3>
+
+                <p className="mt-2 text-sm leading-7 text-muted-foreground">
+                  After you finish posting on the review platform, return here
+                  and click the button below to confirm.
+                </p>
+
+                <button
+                  type="button"
+                  onClick={confirmPostedReview}
+                  disabled={saving || !selectedPlatform}
+                  className="mt-4 rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-black text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {saving ? "Saving..." : "I Posted My Review"}
+                </button>
+
+                {!selectedPlatform && (
+                  <p className="mt-3 text-xs font-semibold text-muted-foreground">
+                    First choose a review platform above.
+                  </p>
+                )}
               </div>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {step === "positive" && selectedPlatform && (
-        <div className="mt-8 rounded-2xl border border-emerald-200 bg-emerald-50 p-6">
-          <div className="flex items-start gap-4">
-            <div className="rounded-2xl bg-white p-3 text-primary shadow-sm">
-              <CheckCircle2 className="h-6 w-6" />
-            </div>
-
-            <div>
-              <h2 className="text-2xl font-black text-secondary">
-                Almost done.
-              </h2>
-
-              <p className="mt-2 leading-7 text-muted-foreground">
-                Your {selectedPlatform} review page opened in a new tab.
-              </p>
-
-              <p className="mt-3 leading-7 text-muted-foreground">
-                After posting your review, you can safely close this page.
-              </p>
+              <div className="mt-5 text-sm text-muted-foreground">
+                Your positive review assist was saved successfully.
+              </div>
             </div>
           </div>
         </div>
