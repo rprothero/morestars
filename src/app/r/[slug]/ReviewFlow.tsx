@@ -1,7 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, MessageSquareHeart, Star } from "lucide-react";
+import {
+  CheckCircle2,
+  MessageSquareHeart,
+  Star,
+  Wrench,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 type ReviewFlowProps = {
@@ -19,6 +24,8 @@ type ReviewFlowProps = {
   facebookUrl: string | null;
 };
 
+type FlowStep = "rating" | "service" | "positive" | "private";
+
 export default function ReviewFlow({
   businessId,
   businessName,
@@ -35,25 +42,40 @@ export default function ReviewFlow({
 }: ReviewFlowProps) {
   const supabase = createClient();
 
+  const [step, setStep] = useState<FlowStep>("rating");
   const [rating, setRating] = useState<number | null>(null);
-
+  const [serviceDescription, setServiceDescription] = useState("");
   const [privateFeedback, setPrivateFeedback] = useState("");
-
-  const [positiveSaved, setPositiveSaved] = useState(false);
-
   const [saving, setSaving] = useState(false);
-
   const [submitted, setSubmitted] = useState(false);
-
   const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
-
   const [errorMessage, setErrorMessage] = useState("");
 
-  const isPositive = rating !== null && rating >= 4;
-  const isPrivateFeedback = rating !== null && rating <= 3;
+  function handleRatingSelect(selectedRating: number) {
+    setRating(selectedRating);
+    setStep("service");
+    setErrorMessage("");
+  }
 
-  async function savePositiveRating(selectedRating: number) {
-    if (positiveSaved) {
+  function handleServiceContinue() {
+    if (serviceDescription.trim().length === 0) {
+      setErrorMessage("Please tell us what the business helped you with.");
+      return;
+    }
+
+    setErrorMessage("");
+
+    if (rating && rating >= 4) {
+      setStep("positive");
+      savePositiveRating();
+      return;
+    }
+
+    setStep("private");
+  }
+
+  async function savePositiveRating() {
+    if (!rating) {
       return;
     }
 
@@ -62,16 +84,14 @@ export default function ReviewFlow({
 
     const { error } = await supabase.from("review_events").insert({
       business_id: businessId,
-      rating: selectedRating,
+      rating,
+      service_description: serviceDescription,
     });
 
     if (error) {
       setErrorMessage(error.message);
-      setSaving(false);
-      return;
     }
 
-    setPositiveSaved(true);
     setSaving(false);
   }
 
@@ -86,6 +106,7 @@ export default function ReviewFlow({
     const { error } = await supabase.from("review_events").insert({
       business_id: businessId,
       rating,
+      service_description: serviceDescription,
       private_feedback: privateFeedback,
     });
 
@@ -108,7 +129,6 @@ export default function ReviewFlow({
     }
 
     setSelectedPlatform(platform);
-
     window.open(url, "_blank");
   }
 
@@ -146,36 +166,59 @@ export default function ReviewFlow({
         </p>
       </div>
 
-      <div className="mt-10 grid grid-cols-5 gap-3">
-        {[1, 2, 3, 4, 5].map((star) => (
-          <button
-            key={star}
-            type="button"
-            onClick={() => {
-              setRating(star);
+      {step === "rating" && (
+        <div className="mt-10 grid grid-cols-5 gap-3">
+          {[1, 2, 3, 4, 5].map((star) => (
+            <button
+              key={star}
+              type="button"
+              onClick={() => handleRatingSelect(star)}
+              className="flex aspect-square items-center justify-center rounded-2xl border border-border bg-background text-2xl font-black text-secondary transition hover:-translate-y-1 hover:border-primary hover:bg-blue-50 hover:text-primary"
+            >
+              <Star className="h-7 w-7 text-muted-foreground" />
+            </button>
+          ))}
+        </div>
+      )}
 
-              if (star >= 4) {
-                savePositiveRating(star);
-              }
-            }}
-            className={`flex aspect-square items-center justify-center rounded-2xl border text-2xl font-black transition hover:-translate-y-1 ${
-              rating === star
-                ? "border-primary bg-blue-50 text-primary"
-                : "border-border bg-background text-secondary hover:border-primary hover:bg-blue-50 hover:text-primary"
-            }`}
-          >
-            <Star
-              className={`h-7 w-7 ${
-                rating && star <= rating
-                  ? "fill-primary text-primary"
-                  : "text-muted-foreground"
-              }`}
-            />
-          </button>
-        ))}
-      </div>
+      {step === "service" && (
+        <div className="mt-8 rounded-2xl border border-border bg-background p-6">
+          <div className="flex items-start gap-4">
+            <div className="rounded-2xl bg-white p-3 text-primary shadow-sm">
+              <Wrench className="h-6 w-6" />
+            </div>
 
-      {isPositive && !selectedPlatform && (
+            <div className="w-full">
+              <h2 className="text-2xl font-black text-secondary">
+                What did we help you with?
+              </h2>
+
+              <p className="mt-2 leading-7 text-muted-foreground">
+                This helps {businessName} understand what part of the experience
+                your rating was about.
+              </p>
+
+              <input
+                type="text"
+                value={serviceDescription}
+                onChange={(e) => setServiceDescription(e.target.value)}
+                placeholder="Example: customer service, plumbing repair, dinner service, cleaning, appointment scheduling"
+                className="mt-5 w-full rounded-2xl border border-border bg-white px-5 py-4 text-sm font-medium outline-none transition focus:border-primary focus:ring-4 focus:ring-blue-100"
+              />
+
+              <button
+                type="button"
+                onClick={handleServiceContinue}
+                className="mt-5 rounded-2xl bg-primary px-6 py-3 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:-translate-y-0.5 hover:bg-blue-700"
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {step === "positive" && !selectedPlatform && (
         <div className="mt-8 rounded-2xl border border-emerald-200 bg-emerald-50 p-6">
           <div className="flex items-start gap-4">
             <div className="rounded-2xl bg-white p-3 text-primary shadow-sm">
@@ -195,9 +238,7 @@ export default function ReviewFlow({
                 {googleEnabled && (
                   <button
                     type="button"
-                    onClick={() =>
-                      handlePlatformClick("Google", googleUrl)
-                    }
+                    onClick={() => handlePlatformClick("Google", googleUrl)}
                     className="rounded-2xl bg-primary px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:-translate-y-0.5 hover:bg-blue-700"
                   >
                     Google
@@ -207,9 +248,7 @@ export default function ReviewFlow({
                 {yelpEnabled && (
                   <button
                     type="button"
-                    onClick={() =>
-                      handlePlatformClick("Yelp", yelpUrl)
-                    }
+                    onClick={() => handlePlatformClick("Yelp", yelpUrl)}
                     className="rounded-2xl border border-border bg-white px-5 py-3 text-sm font-black text-secondary transition hover:-translate-y-0.5 hover:border-primary hover:text-primary"
                   >
                     Yelp
@@ -230,14 +269,16 @@ export default function ReviewFlow({
               </div>
 
               <div className="mt-5 text-sm text-muted-foreground">
-                Your positive review was saved successfully.
+                {saving
+                  ? "Saving your rating..."
+                  : "Your positive review was saved successfully."}
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {isPositive && selectedPlatform && (
+      {step === "positive" && selectedPlatform && (
         <div className="mt-8 rounded-2xl border border-emerald-200 bg-emerald-50 p-6">
           <div className="flex items-start gap-4">
             <div className="rounded-2xl bg-white p-3 text-primary shadow-sm">
@@ -261,7 +302,7 @@ export default function ReviewFlow({
         </div>
       )}
 
-      {isPrivateFeedback && (
+      {step === "private" && (
         <div className="mt-8 rounded-2xl border border-border bg-background p-6">
           <div className="flex items-start gap-4">
             <div className="rounded-2xl bg-white p-3 text-primary shadow-sm">
