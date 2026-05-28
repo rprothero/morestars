@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Copy, ExternalLink } from "lucide-react";
 
@@ -21,6 +21,9 @@ type Business = {
 type ReviewEvent = {
   id: string;
   rating: number;
+  service_description: string | null;
+  helper_name: string | null;
+  suggested_review: string | null;
   private_feedback: string | null;
   confirmed_posted: boolean;
   created_at: string;
@@ -34,6 +37,7 @@ export default function DashboardPage() {
   const [userEmail, setUserEmail] = useState("");
   const [business, setBusiness] = useState<Business | null>(null);
   const [reviewEvents, setReviewEvents] = useState<ReviewEvent[]>([]);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     async function loadDashboard() {
@@ -76,6 +80,60 @@ export default function DashboardPage() {
     loadDashboard();
   }, [router, supabase]);
 
+  const analytics = useMemo(() => {
+    const totalInteractions = reviewEvents.length;
+    const positiveRatings = reviewEvents.filter((event) => event.rating >= 4).length;
+    const privateFeedback = reviewEvents.filter((event) => event.rating <= 3).length;
+    const confirmedPosted = reviewEvents.filter((event) => event.confirmed_posted).length;
+
+    const conversionRate =
+      positiveRatings > 0 ? Math.round((confirmedPosted / positiveRatings) * 100) : 0;
+
+    const averageRating =
+      totalInteractions > 0
+        ? (
+            reviewEvents.reduce((sum, event) => sum + event.rating, 0) /
+            totalInteractions
+          ).toFixed(1)
+        : "0.0";
+
+    const serviceCounts = reviewEvents.reduce<Record<string, number>>((acc, event) => {
+      const key = event.service_description?.trim() || "Unspecified";
+      acc[key] = (acc[key] ?? 0) + 1;
+      return acc;
+    }, {});
+
+    const helperCounts = reviewEvents.reduce<Record<string, number>>((acc, event) => {
+      const key = event.helper_name?.trim();
+      if (!key) return acc;
+      acc[key] = (acc[key] ?? 0) + 1;
+      return acc;
+    }, {});
+
+    const topService = Object.entries(serviceCounts).sort((a, b) => b[1] - a[1])[0];
+    const topHelper = Object.entries(helperCounts).sort((a, b) => b[1] - a[1])[0];
+
+    return {
+      totalInteractions,
+      positiveRatings,
+      privateFeedback,
+      confirmedPosted,
+      conversionRate,
+      averageRating,
+      topService,
+      topHelper,
+    };
+  }, [reviewEvents]);
+
+  async function copyReviewLink(reviewUrl: string) {
+    await navigator.clipboard.writeText(reviewUrl);
+    setCopied(true);
+
+    setTimeout(() => {
+      setCopied(false);
+    }, 2000);
+  }
+
   if (loading) {
     return (
       <main className="min-h-screen bg-background px-6 py-10 text-foreground">
@@ -94,11 +152,6 @@ export default function DashboardPage() {
 
   const reviewUrl = `${window.location.origin}/r/${business.business_slug}`;
 
-  const totalInteractions = reviewEvents.length;
-  const positiveRatings = reviewEvents.filter((event) => event.rating >= 4).length;
-  const privateFeedback = reviewEvents.filter((event) => event.rating <= 3).length;
-  const confirmedPosted = reviewEvents.filter((event) => event.confirmed_posted).length;
-
   return (
     <main className="min-h-screen bg-background px-6 py-10 text-foreground">
       <div className="mx-auto max-w-7xl">
@@ -113,8 +166,7 @@ export default function DashboardPage() {
             </h1>
 
             <p className="mt-3 max-w-2xl leading-7 text-muted-foreground">
-              Monitor review activity, manage your review platforms, and track
-              customer feedback from one dashboard.
+              Monitor review assists, private feedback, service trends, and confirmed posted reviews.
             </p>
           </div>
 
@@ -128,24 +180,51 @@ export default function DashboardPage() {
 
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
           {[
-            ["Total Interactions", totalInteractions],
-            ["Positive Ratings", positiveRatings],
-            ["Private Feedback", privateFeedback],
-            ["Confirmed Posted", confirmedPosted],
+            ["Total Interactions", analytics.totalInteractions],
+            ["Average Rating", analytics.averageRating],
+            ["Private Feedback", analytics.privateFeedback],
+            ["Confirmed Posted", analytics.confirmedPosted],
           ].map(([label, value]) => (
             <div
               key={String(label)}
               className="rounded-[2rem] border border-border bg-card p-6 shadow-sm"
             >
-              <div className="text-sm font-bold text-muted-foreground">
-                {label}
-              </div>
-
-              <div className="mt-3 text-4xl font-black text-secondary">
-                {value}
-              </div>
+              <div className="text-sm font-bold text-muted-foreground">{label}</div>
+              <div className="mt-3 text-4xl font-black text-secondary">{value}</div>
             </div>
           ))}
+        </div>
+
+        <div className="mt-5 grid gap-5 md:grid-cols-3">
+          <div className="rounded-[2rem] border border-emerald-200 bg-emerald-50 p-6 shadow-sm">
+            <div className="text-sm font-black uppercase tracking-wide text-emerald-700">
+              Positive Ratings
+            </div>
+            <div className="mt-3 text-4xl font-black text-secondary">
+              {analytics.positiveRatings}
+            </div>
+          </div>
+
+          <div className="rounded-[2rem] border border-blue-200 bg-blue-50 p-6 shadow-sm">
+            <div className="text-sm font-black uppercase tracking-wide text-primary">
+              Review Completion Rate
+            </div>
+            <div className="mt-3 text-4xl font-black text-secondary">
+              {analytics.conversionRate}%
+            </div>
+          </div>
+
+          <div className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
+            <div className="text-sm font-black uppercase tracking-wide text-muted-foreground">
+              Top Service / Helper
+            </div>
+            <div className="mt-3 text-lg font-black text-secondary">
+              {analytics.topService ? analytics.topService[0] : "No service data yet"}
+            </div>
+            <div className="mt-1 text-sm text-muted-foreground">
+              {analytics.topHelper ? `Top helper: ${analytics.topHelper[0]}` : "No helper data yet"}
+            </div>
+          </div>
         </div>
 
         <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_360px]">
@@ -194,11 +273,11 @@ export default function DashboardPage() {
                     <div className="flex flex-wrap gap-3">
                       <button
                         type="button"
-                        onClick={() => navigator.clipboard.writeText(reviewUrl)}
+                        onClick={() => copyReviewLink(reviewUrl)}
                         className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-black text-white transition hover:bg-blue-700"
                       >
                         <Copy className="h-4 w-4" />
-                        Copy Link
+                        {copied ? "Copied" : "Copy Link"}
                       </button>
 
                       <a
@@ -227,11 +306,11 @@ export default function DashboardPage() {
 
             <div className="rounded-[2rem] border border-border bg-card p-8 shadow-sm">
               <h2 className="text-2xl font-black text-secondary">
-                Recent Feedback
+                Recent Review Activity
               </h2>
 
               <p className="mt-2 text-muted-foreground">
-                Latest review interactions from customers.
+                Latest review assists, private feedback, services, helpers, and confirmed posted reviews.
               </p>
 
               <div className="mt-8 space-y-4">
@@ -241,20 +320,25 @@ export default function DashboardPage() {
                       key={event.id}
                       className="rounded-2xl border border-border bg-background p-5"
                     >
-                      <div className="flex items-center justify-between gap-4">
-                        <div className="flex items-center gap-2">
+                      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                        <div className="flex flex-wrap items-center gap-2">
                           <div className="rounded-full bg-primary px-3 py-1 text-xs font-black text-white">
-                            {event.rating} Star
-                            {event.rating === 1 ? "" : "s"}
+                            {event.rating} Star{event.rating === 1 ? "" : "s"}
                           </div>
 
                           {event.rating >= 4 ? (
                             <div className="text-sm font-semibold text-emerald-600">
-                              Positive
+                              Positive Review Assist
                             </div>
                           ) : (
                             <div className="text-sm font-semibold text-orange-600">
                               Private Feedback
+                            </div>
+                          )}
+
+                          {event.confirmed_posted && (
+                            <div className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-700">
+                              Confirmed Posted
                             </div>
                           )}
                         </div>
@@ -264,9 +348,35 @@ export default function DashboardPage() {
                         </div>
                       </div>
 
+                      <div className="mt-4 grid gap-3 md:grid-cols-2">
+                        <div className="rounded-xl border border-border bg-card px-4 py-3">
+                          <div className="text-xs font-black uppercase tracking-wide text-muted-foreground">
+                            Service
+                          </div>
+                          <div className="mt-1 text-sm font-semibold text-secondary">
+                            {event.service_description || "Not provided"}
+                          </div>
+                        </div>
+
+                        <div className="rounded-xl border border-border bg-card px-4 py-3">
+                          <div className="text-xs font-black uppercase tracking-wide text-muted-foreground">
+                            Helper
+                          </div>
+                          <div className="mt-1 text-sm font-semibold text-secondary">
+                            {event.helper_name || "Not provided"}
+                          </div>
+                        </div>
+                      </div>
+
                       {event.private_feedback && (
                         <div className="mt-4 rounded-xl border border-border bg-card px-4 py-3 text-sm leading-6 text-muted-foreground">
                           {event.private_feedback}
+                        </div>
+                      )}
+
+                      {event.suggested_review && (
+                        <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm leading-6 text-secondary">
+                          {event.suggested_review}
                         </div>
                       )}
                     </div>
@@ -325,9 +435,7 @@ export default function DashboardPage() {
 
                     <span
                       className={`rounded-full px-3 py-1 text-xs font-black ${
-                        enabled
-                          ? "bg-primary text-white"
-                          : "bg-white/10 text-white/70"
+                        enabled ? "bg-primary text-white" : "bg-white/10 text-white/70"
                       }`}
                     >
                       {enabled ? "Enabled" : "Disabled"}

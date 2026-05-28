@@ -37,6 +37,14 @@ type FlowStep =
   | "posted"
   | "private";
 
+function makeSessionId() {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
 export default function ReviewFlow({
   businessId,
   businessName,
@@ -60,6 +68,7 @@ export default function ReviewFlow({
   const [submitted, setSubmitted] = useState(false);
   const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
   const [reviewEventId, setReviewEventId] = useState<string | null>(null);
+  const [publicSessionId] = useState(makeSessionId);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [customCopied, setCustomCopied] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -122,6 +131,7 @@ export default function ReviewFlow({
         service_description: serviceDescription,
         helper_name: helperName,
         suggested_review: customReview,
+        public_session_id: publicSessionId,
       })
       .select("id")
       .single();
@@ -146,12 +156,10 @@ export default function ReviewFlow({
     setSaving(true);
     setErrorMessage("");
 
-    const { error } = await supabase
-      .from("review_events")
-      .update({
-        confirmed_posted: true,
-      })
-      .eq("id", reviewEventId);
+    const { error } = await supabase.rpc("confirm_review_posted", {
+      p_event_id: reviewEventId,
+      p_session_id: publicSessionId,
+    });
 
     if (error) {
       setErrorMessage(error.message);
@@ -177,6 +185,7 @@ export default function ReviewFlow({
       service_description: serviceDescription,
       helper_name: helperName,
       private_feedback: privateFeedback,
+      public_session_id: publicSessionId,
     });
 
     if (error) {
