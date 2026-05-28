@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   MessageSquareHeart,
   Star,
+  UserRound,
   Wrench,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -24,7 +25,7 @@ type ReviewFlowProps = {
   facebookUrl: string | null;
 };
 
-type FlowStep = "rating" | "service" | "positive" | "private";
+type FlowStep = "rating" | "service" | "helper" | "positive" | "private";
 
 export default function ReviewFlow({
   businessId,
@@ -45,6 +46,7 @@ export default function ReviewFlow({
   const [step, setStep] = useState<FlowStep>("rating");
   const [rating, setRating] = useState<number | null>(null);
   const [serviceDescription, setServiceDescription] = useState("");
+  const [helperName, setHelperName] = useState("");
   const [privateFeedback, setPrivateFeedback] = useState("");
   const [saving, setSaving] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -63,6 +65,11 @@ export default function ReviewFlow({
       return;
     }
 
+    setErrorMessage("");
+    setStep("helper");
+  }
+
+  function handleHelperContinue() {
     setErrorMessage("");
 
     if (rating && rating >= 4) {
@@ -86,6 +93,7 @@ export default function ReviewFlow({
       business_id: businessId,
       rating,
       service_description: serviceDescription,
+      helper_name: helperName,
     });
 
     if (error) {
@@ -107,6 +115,7 @@ export default function ReviewFlow({
       business_id: businessId,
       rating,
       service_description: serviceDescription,
+      helper_name: helperName,
       private_feedback: privateFeedback,
     });
 
@@ -213,6 +222,56 @@ export default function ReviewFlow({
               >
                 Continue
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {step === "helper" && (
+        <div className="mt-8 rounded-2xl border border-border bg-background p-6">
+          <div className="flex items-start gap-4">
+            <div className="rounded-2xl bg-white p-3 text-primary shadow-sm">
+              <UserRound className="h-6 w-6" />
+            </div>
+
+            <div className="w-full">
+              <h2 className="text-2xl font-black text-secondary">
+                Who helped you?
+              </h2>
+
+              <p className="mt-2 leading-7 text-muted-foreground">
+                This is optional. You can name a team member, technician,
+                server, agent, or staff member if someone specific helped you.
+              </p>
+
+              <input
+                type="text"
+                value={helperName}
+                onChange={(e) => setHelperName(e.target.value)}
+                placeholder="Optional: John, Sarah, Mike the technician, front desk staff"
+                className="mt-5 w-full rounded-2xl border border-border bg-white px-5 py-4 text-sm font-medium outline-none transition focus:border-primary focus:ring-4 focus:ring-blue-100"
+              />
+
+              <div className="mt-5 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={handleHelperContinue}
+                  className="rounded-2xl bg-primary px-6 py-3 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:-translate-y-0.5 hover:bg-blue-700"
+                >
+                  Continue
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setHelperName("");
+                    handleHelperContinue();
+                  }}
+                  className="rounded-2xl border border-border bg-white px-6 py-3 text-sm font-black text-secondary transition hover:-translate-y-0.5 hover:border-primary hover:text-primary"
+                >
+                  Skip
+                </button>
+              </div>
             </div>
           </div>
         </div>
