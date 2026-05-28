@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Copy, ExternalLink } from "lucide-react";
+import { Copy, ExternalLink, Settings } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/client";
 import ReviewQrCode from "@/components/ReviewQrCode";
@@ -98,7 +98,8 @@ export default function DashboardPage() {
         : "0.0";
 
     const serviceCounts = reviewEvents.reduce<Record<string, number>>((acc, event) => {
-      const key = event.service_description?.trim() || "Unspecified";
+      const key = event.service_description?.trim();
+      if (!key) return acc;
       acc[key] = (acc[key] ?? 0) + 1;
       return acc;
     }, {});
@@ -166,16 +167,27 @@ export default function DashboardPage() {
             </h1>
 
             <p className="mt-3 max-w-2xl leading-7 text-muted-foreground">
-              Monitor review assists, private feedback, service trends, and confirmed posted reviews.
+              Monitor review assists, private feedback, service trends, and
+              confirmed posted reviews.
             </p>
           </div>
 
-          <Link
-            href="/auth/logout"
-            className="inline-flex items-center justify-center rounded-2xl bg-secondary px-5 py-3 text-sm font-black text-white transition hover:bg-[#142C46]"
-          >
-            Logout
-          </Link>
+          <div className="flex flex-wrap gap-3">
+            <Link
+              href="/dashboard/settings"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-border bg-card px-5 py-3 text-sm font-black text-secondary transition hover:border-primary hover:text-primary"
+            >
+              <Settings className="h-4 w-4" />
+              Settings
+            </Link>
+
+            <Link
+              href="/auth/logout"
+              className="inline-flex items-center justify-center rounded-2xl bg-secondary px-5 py-3 text-sm font-black text-white transition hover:bg-[#142C46]"
+            >
+              Logout
+            </Link>
+          </div>
         </div>
 
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
@@ -189,8 +201,13 @@ export default function DashboardPage() {
               key={String(label)}
               className="rounded-[2rem] border border-border bg-card p-6 shadow-sm"
             >
-              <div className="text-sm font-bold text-muted-foreground">{label}</div>
-              <div className="mt-3 text-4xl font-black text-secondary">{value}</div>
+              <div className="text-sm font-bold text-muted-foreground">
+                {label}
+              </div>
+
+              <div className="mt-3 text-4xl font-black text-secondary">
+                {value}
+              </div>
             </div>
           ))}
         </div>
@@ -200,6 +217,7 @@ export default function DashboardPage() {
             <div className="text-sm font-black uppercase tracking-wide text-emerald-700">
               Positive Ratings
             </div>
+
             <div className="mt-3 text-4xl font-black text-secondary">
               {analytics.positiveRatings}
             </div>
@@ -209,6 +227,7 @@ export default function DashboardPage() {
             <div className="text-sm font-black uppercase tracking-wide text-primary">
               Review Completion Rate
             </div>
+
             <div className="mt-3 text-4xl font-black text-secondary">
               {analytics.conversionRate}%
             </div>
@@ -218,11 +237,15 @@ export default function DashboardPage() {
             <div className="text-sm font-black uppercase tracking-wide text-muted-foreground">
               Top Service / Helper
             </div>
+
             <div className="mt-3 text-lg font-black text-secondary">
               {analytics.topService ? analytics.topService[0] : "No service data yet"}
             </div>
+
             <div className="mt-1 text-sm text-muted-foreground">
-              {analytics.topHelper ? `Top helper: ${analytics.topHelper[0]}` : "No helper data yet"}
+              {analytics.topHelper
+                ? `Top helper: ${analytics.topHelper[0]}`
+                : "No helper data yet"}
             </div>
           </div>
         </div>
@@ -241,12 +264,21 @@ export default function DashboardPage() {
                   </p>
                 </div>
 
-                <Link
-                  href="/onboarding"
-                  className="rounded-xl border border-border bg-background px-4 py-2 text-sm font-bold text-secondary transition hover:border-primary hover:text-primary"
-                >
-                  Edit
-                </Link>
+                <div className="flex flex-wrap gap-3">
+                  <Link
+                    href="/dashboard/settings"
+                    className="rounded-xl border border-border bg-background px-4 py-2 text-sm font-bold text-secondary transition hover:border-primary hover:text-primary"
+                  >
+                    Services & Team
+                  </Link>
+
+                  <Link
+                    href="/onboarding"
+                    className="rounded-xl border border-border bg-background px-4 py-2 text-sm font-bold text-secondary transition hover:border-primary hover:text-primary"
+                  >
+                    Edit Business
+                  </Link>
+                </div>
               </div>
 
               <div className="mt-8 space-y-6">
@@ -310,7 +342,8 @@ export default function DashboardPage() {
               </h2>
 
               <p className="mt-2 text-muted-foreground">
-                Latest review assists, private feedback, services, helpers, and confirmed posted reviews.
+                Latest review assists, private feedback, services, helpers, and
+                confirmed posted reviews.
               </p>
 
               <div className="mt-8 space-y-4">
@@ -353,6 +386,7 @@ export default function DashboardPage() {
                           <div className="text-xs font-black uppercase tracking-wide text-muted-foreground">
                             Service
                           </div>
+
                           <div className="mt-1 text-sm font-semibold text-secondary">
                             {event.service_description || "Not provided"}
                           </div>
@@ -362,6 +396,7 @@ export default function DashboardPage() {
                           <div className="text-xs font-black uppercase tracking-wide text-muted-foreground">
                             Helper
                           </div>
+
                           <div className="mt-1 text-sm font-semibold text-secondary">
                             {event.helper_name || "Not provided"}
                           </div>
@@ -435,7 +470,9 @@ export default function DashboardPage() {
 
                     <span
                       className={`rounded-full px-3 py-1 text-xs font-black ${
-                        enabled ? "bg-primary text-white" : "bg-white/10 text-white/70"
+                        enabled
+                          ? "bg-primary text-white"
+                          : "bg-white/10 text-white/70"
                       }`}
                     >
                       {enabled ? "Enabled" : "Disabled"}
