@@ -3,13 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  AlertTriangle,
-  ArrowLeft,
-  Plus,
-  Trash2,
-  X,
-} from "lucide-react";
+import { AlertTriangle, ArrowLeft, Plus, Trash2, X } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/client";
 
@@ -30,6 +24,7 @@ type ServiceCategory = {
   id: string;
   category_name: string;
   is_active: boolean;
+  source: string | null;
 };
 
 type Helper = {
@@ -109,7 +104,7 @@ export default function DashboardSettingsPage() {
 
     const { data: serviceData } = await supabase
       .from("business_service_categories")
-      .select("id, category_name, is_active")
+      .select("id, category_name, is_active, source")
       .eq("business_id", businessData.id)
       .order("category_name", { ascending: true });
 
@@ -152,21 +147,34 @@ export default function DashboardSettingsPage() {
       return;
     }
 
+    const { error: deleteTemplateError } = await supabase
+      .from("business_service_categories")
+      .delete()
+      .eq("business_id", business.id)
+      .eq("source", "template");
+
+    if (deleteTemplateError) {
+      setErrorMessage(deleteTemplateError.message);
+      setSavingBusinessType(false);
+      return;
+    }
+
     const template = getIndustryTemplateByKey(selectedBusinessType);
 
-    const existingNames = services.map((service) =>
-      service.category_name.trim().toLowerCase()
-    );
+    const customNames = services
+      .filter((service) => service.source !== "template")
+      .map((service) => service.category_name.trim().toLowerCase());
 
     const missingCategories = template.serviceCategories.filter(
-      (category) =>
-        !existingNames.includes(category.trim().toLowerCase())
+      (category) => !customNames.includes(category.trim().toLowerCase())
     );
 
     if (missingCategories.length > 0) {
       const inserts = missingCategories.map((category) => ({
         business_id: business.id,
         category_name: category,
+        source: "template",
+        template_key: selectedBusinessType,
       }));
 
       const { error: insertError } = await supabase
@@ -196,6 +204,8 @@ export default function DashboardSettingsPage() {
     const { error } = await supabase.from("business_service_categories").insert({
       business_id: business.id,
       category_name: newService.trim(),
+      source: "custom",
+      template_key: null,
     });
 
     if (error) {
@@ -396,9 +406,9 @@ export default function DashboardSettingsPage() {
           </div>
 
           <div className="mt-4 rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm font-medium text-blue-900">
-            Saving an industry will automatically add recommended service
-            categories that are missing. Existing custom categories will never
-            be deleted.
+            Saving an industry will replace old auto-generated template
+            categories with the new industry template. Your manually added
+            categories will stay unless you delete them.
           </div>
         </section>
 
@@ -409,8 +419,8 @@ export default function DashboardSettingsPage() {
             </h2>
 
             <p className="mt-2 leading-7 text-muted-foreground">
-              These appear as quick-select buttons when customers answer:
-              “What did we help you with?”
+              These appear as quick-select buttons when customers answer: “What
+              did we help you with?”
             </p>
 
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
@@ -446,7 +456,9 @@ export default function DashboardSettingsPage() {
                       </div>
 
                       <div className="mt-1 text-xs font-bold text-muted-foreground">
-                        {service.is_active ? "Active" : "Hidden from review flow"}
+                        {service.is_active
+                          ? "Active"
+                          : "Hidden from review flow"}
                       </div>
                     </div>
 
@@ -495,8 +507,8 @@ export default function DashboardSettingsPage() {
             </h2>
 
             <p className="mt-2 leading-7 text-muted-foreground">
-              These appear as optional quick-select buttons when customers answer:
-              “Who helped you?”
+              These appear as optional quick-select buttons when customers
+              answer: “Who helped you?”
             </p>
 
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
@@ -532,7 +544,9 @@ export default function DashboardSettingsPage() {
                       </div>
 
                       <div className="mt-1 text-xs font-bold text-muted-foreground">
-                        {helper.is_active ? "Active" : "Hidden from review flow"}
+                        {helper.is_active
+                          ? "Active"
+                          : "Hidden from review flow"}
                       </div>
                     </div>
 
