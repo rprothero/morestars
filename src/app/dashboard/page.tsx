@@ -4,12 +4,14 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  CheckCircle2,
   Copy,
   Download,
   ExternalLink,
   MapPin,
   Printer,
   Settings,
+  Sparkles,
 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/client";
@@ -335,6 +337,7 @@ export default function DashboardPage() {
 
   const reviewUrl = `${window.location.origin}/r/${business.business_slug}`;
   const placementIdeas = getPlacementIdeas(business.business_type);
+  const hasActivity = reviewEvents.length > 0;
 
   return (
     <main className="min-h-screen bg-background px-6 py-10 text-foreground">
@@ -373,6 +376,49 @@ export default function DashboardPage() {
           </div>
         </div>
 
+        {!hasActivity && (
+          <div className="mb-6 rounded-[2rem] border border-blue-200 bg-blue-50 p-6 shadow-sm">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <div className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-xs font-black uppercase tracking-wide text-primary">
+                  <Sparkles className="h-4 w-4" />
+                  Ready to collect your first review
+                </div>
+
+                <h2 className="mt-4 text-2xl font-black text-secondary">
+                  Your review system is live. Now put it in front of customers.
+                </h2>
+
+                <p className="mt-2 max-w-3xl leading-7 text-blue-950">
+                  Start by printing your QR code, placing it where customers
+                  naturally pause, and asking happy customers to scan it before
+                  they leave.
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={openPrintableQrAsset}
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-5 py-3 text-sm font-black text-white transition hover:bg-blue-700"
+                >
+                  <Printer className="h-4 w-4" />
+                  Print QR Asset
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => copyReviewLink(reviewUrl)}
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-blue-200 bg-white px-5 py-3 text-sm font-black text-secondary transition hover:border-primary hover:text-primary"
+                >
+                  <Copy className="h-4 w-4" />
+                  {copied ? "Copied" : "Copy Link"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
           {[
             ["Total Interactions", analytics.totalInteractions],
@@ -391,6 +437,12 @@ export default function DashboardPage() {
               <div className="mt-3 text-4xl font-black text-secondary">
                 {value}
               </div>
+
+              {!hasActivity && (
+                <div className="mt-3 text-xs font-semibold text-muted-foreground">
+                  Will update after customers scan your QR code.
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -404,6 +456,12 @@ export default function DashboardPage() {
             <div className="mt-3 text-4xl font-black text-secondary">
               {analytics.positiveRatings}
             </div>
+
+            {!hasActivity && (
+              <p className="mt-3 text-xs font-semibold leading-5 text-emerald-800">
+                Positive customer ratings will appear here.
+              </p>
+            )}
           </div>
 
           <div className="rounded-[2rem] border border-blue-200 bg-blue-50 p-6 shadow-sm">
@@ -414,6 +472,12 @@ export default function DashboardPage() {
             <div className="mt-3 text-4xl font-black text-secondary">
               {analytics.conversionRate}%
             </div>
+
+            {!hasActivity && (
+              <p className="mt-3 text-xs font-semibold leading-5 text-blue-900">
+                This will show how many positive ratings confirm they posted.
+              </p>
+            )}
           </div>
 
           <div className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
@@ -680,14 +744,60 @@ export default function DashboardPage() {
                     </div>
                   ))
                 ) : (
-                  <div className="rounded-2xl border border-dashed border-border p-8 text-center">
-                    <div className="text-lg font-bold text-secondary">
-                      No review activity yet
-                    </div>
+                  <div className="rounded-[2rem] border border-dashed border-blue-200 bg-blue-50 p-8">
+                    <div className="flex flex-col gap-5 md:flex-row md:items-start">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white text-primary">
+                        <CheckCircle2 className="h-6 w-6" />
+                      </div>
 
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      Customer review activity will appear here.
-                    </p>
+                      <div>
+                        <div className="text-xl font-black text-secondary">
+                          No review activity yet — everything is ready.
+                        </div>
+
+                        <p className="mt-2 max-w-2xl text-sm leading-6 text-blue-950">
+                          Once customers scan your QR code and complete the
+                          review flow, their ratings, services, helpers, private
+                          feedback, and confirmed posted reviews will appear
+                          here.
+                        </p>
+
+                        <div className="mt-5 grid gap-3 md:grid-cols-3">
+                          {[
+                            "Print your QR asset",
+                            "Place it near checkout",
+                            "Ask happy customers",
+                          ].map((item) => (
+                            <div
+                              key={item}
+                              className="rounded-2xl border border-blue-100 bg-white px-4 py-3 text-sm font-black text-secondary"
+                            >
+                              {item}
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="mt-5 flex flex-wrap gap-3">
+                          <button
+                            type="button"
+                            onClick={openPrintableQrAsset}
+                            className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-black text-white transition hover:bg-blue-700"
+                          >
+                            <Printer className="h-4 w-4" />
+                            Print QR
+                          </button>
+
+                          <a
+                            href={reviewUrl}
+                            target="_blank"
+                            className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-white px-4 py-2 text-sm font-black text-secondary transition hover:border-primary hover:text-primary"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                            Test Review Flow
+                          </a>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
