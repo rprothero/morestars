@@ -141,6 +141,31 @@ export default function OnboardingPage() {
     }
   }
 
+  async function sendOnboardingCompleteEmail(targetBusinessId: string) {
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session?.access_token) {
+        return;
+      }
+
+      await fetch("/api/onboarding-complete-email", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          businessId: targetBusinessId,
+        }),
+      });
+    } catch {
+      // Email failure should not block onboarding.
+    }
+  }
+
   async function handleSave() {
     setSaving(true);
     setErrorMessage("");
@@ -212,6 +237,7 @@ export default function OnboardingPage() {
 
       if (targetBusinessId) {
         await seedIndustryCategories(targetBusinessId);
+        await sendOnboardingCompleteEmail(targetBusinessId);
       }
 
       window.location.href = "/dashboard";
@@ -463,7 +489,9 @@ export default function OnboardingPage() {
 
               <ul className="mt-4 space-y-4 text-sm leading-6 text-muted-foreground">
                 <li>• Your business gets a unique review link and QR code</li>
-                <li>• Recommended service categories are created automatically</li>
+                <li>
+                  • Recommended service categories are created automatically
+                </li>
                 <li>• Customers can scan and leave ratings</li>
                 <li>• Positive ratings get guided toward review platforms</li>
                 <li>• Lower ratings become private feedback</li>
